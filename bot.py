@@ -11,6 +11,7 @@ from telegram.ext import (
 from handlers.start import start
 from handlers.help import help
 from handlers.message import message
+from handlers.login import login
 from handlers.button import button
 
 load_dotenv()
@@ -22,6 +23,7 @@ def main():
     # command handlers
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help))
+    app.add_handler(CommandHandler("login", login))
 
     # message handler
     app.add_handler(MessageHandler(filters.TEXT, message))
