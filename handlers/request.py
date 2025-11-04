@@ -1,29 +1,35 @@
 import os
 import httpx
 from telegram.ext import ContextTypes
-from models.user import User
 from dotenv import load_dotenv
+from collections import deque
+
+from models.user import User
+from models.expense import Expense
 
 apiUrl: str = "https://localhost:7108"
 
 load_dotenv()
 OpenRouterToken: str = os.getenv("OPENROUTER_API_KEY")
 
-async def getUser(user: str):
-    async with httpx.AsyncClient(verify=False) as client:
-        response = await client.get(f"{apiUrl}/users/{user}")
-        response: User = response.json()
-        user = User(response.get("id"),
-                    response.get("name"),
-                    response.get("userstate", "ACTIVE"),  # default value
-                    response.get("categories", []),
-                    response.get("expenses", []),
-                    response.get("bills", []),
-                    response.get("totalRevenue", 0.0),
-                    response.get("totalExpense", 0.0),
-                    response.get("totalBalance", 0.0),
-                    response.get("createdAt"))
-    return str(user)
+async def getUser(user: str) -> User:
+    try:
+        async with httpx.AsyncClient(verify=False) as client:
+            response = await client.get(f"{apiUrl}/users/{user}")
+            response: User = response.json()
+            user = User(response.get("id"),
+                        response.get("name"),
+                        response.get("userstate", "ACTIVE"),  # default value
+                        response.get("categories", []),
+                        response.get("expenses", []),
+                        response.get("bills", []),
+                        response.get("totalRevenue", 0.0),
+                        response.get("totalExpense", 0.0),
+                        response.get("totalBalance", 0.0),
+                        response.get("createdAt"))
+    except Exception as e:
+        print(e)
+    return user
 
 async def createUser(user: str):
     payload = {"name": user, "createdAt": None}
@@ -39,17 +45,29 @@ async def createUser(user: str):
 
 async def openRouterAI(message: str, context: ContextTypes.DEFAULT_TYPE, imageUrl: str = None):
     async with httpx.AsyncClient(verify=False, timeout=200) as client:
-        content = [{"type": "text", "text": message}]
-        if imageUrl:
-            content.append({
-                "type": "image_url",
-                "image_url": {"url": imageUrl}
-            })
 
+        if "chat_history" not in context.user_data:
+            context.user_data["chat_history"] = deque(maxlen=20)
+
+        # append context info
         if context.user_data.get("UserAuth") is None:
-            context.user_data["UserAuth"] = "No context registred"
+            context.user_data["UserAuth"] = "No context registered"
 
-        userContext = [{"type": "text", "text": f"Context only: {context.user_data.get('UserAuth')}"}]
+        context.user_data["chat_history"].append({
+            "role": "user",
+            "content": [{"type": "text", "text": f"Context only: {context.user_data.get('UserAuth')}"}]
+        })
+
+        # user message content
+        message_content = [{"type": "text", "text": message}]
+        if imageUrl:
+            message_content.append({"type": "image_url", "image_url": {"url": imageUrl}})
+
+        # append user message
+        context.user_data["chat_history"].append({
+            "role": "user",
+            "content": message_content
+        })
 
         response = await client.post(
             url="https://openrouter.ai/api/v1/chat/completions",
@@ -63,16 +81,9 @@ async def openRouterAI(message: str, context: ContextTypes.DEFAULT_TYPE, imageUr
                 "messages": [
                     {
                         "role": "system",
-                        "content": "You are Personal Finance, an AI finance assistant. You help users manage personal finances, track expenses, give budgeting insights, and explain finance terms clearly. Keep responses short and practical — max 3 sentences. Your main language is Portuguese from Brasil. Don't utilize * on responses. You have commands like /start that create the account for the user. /login to users that have an account. /help that tells the user what commands they have. You don't have any other commands at the moment"
+                        "content": "You are Personal Finance, an AI finance assistant. You help users manage personal finances, track expenses, give budgeting insights, and explain finance terms clearly. But you can and should answer questions for another Topic. Keep responses short and practical — max 3 sentences. Your main language is Portuguese from Brasil. Don't utilize * on responses. You have commands like /start that create the account for the user. /login to users that have an account. /help that tells the user what commands they have. You don't have any other commands at the moment"
                     },
-                    {
-                        "role": "user",
-                        "content": userContext
-                    },
-                    {
-                        "role": "user",
-                        "content": content
-                    }
+                    *list(context.user_data.get("chat_history", []))
                 ]
             })
         
@@ -87,5 +98,17 @@ async def openRouterAI(message: str, context: ContextTypes.DEFAULT_TYPE, imageUr
         if not content:
             print("⚠️ OpenRouter API invalid response:", data)
             raise Exception("OpenRouter API error")
+        
+        context.user_data["chat_history"].append({
+            "role": "assistant",
+            "content": [{"type": "text", "text": content}]  # content must be a list of type objects
+        })
 
     return content
+
+async def createExpense(context: ContextTypes.DEFAULT_TYPE, expense: Expense):
+    try:
+        async with httpx.AsyncClient(verify=False) as client:
+            await client.post(f"{apiUrl}/expense", json=expense.to_dict())
+    except Exception as e:
+        print(e)

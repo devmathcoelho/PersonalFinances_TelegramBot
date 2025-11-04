@@ -8,10 +8,11 @@ from telegram.ext import (
     filters, 
     CallbackQueryHandler)
 
-from handlers.start import start
-from handlers.help import help
+from commands.start import start
+from commands.help import help
+from commands.login import login
+from commands.addExpense import addExpense
 from handlers.message import message
-from handlers.login import login
 from handlers.button import button
 
 load_dotenv()
@@ -24,6 +25,7 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help))
     app.add_handler(CommandHandler("login", login))
+    app.add_handler(CommandHandler("addExpense", addExpense))
 
     # message handler
     app.add_handler(MessageHandler(filters.TEXT, message))

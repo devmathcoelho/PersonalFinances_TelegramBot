@@ -15,8 +15,12 @@ class User:
 
     def __str__(self):
         return f"User: {self.name} \
+        \nID: {self.id} \
         \nState: {self.userstate} \
         \nBalance: {self.TotalBalance} \
         \nTotal Expenses: {self.TotalExpense} \
         \nTotal Revenue: {self.TotalRevenue} \
+        \nCategories: {self.Categories} \
+        \nExpenses: {self.Expenses} \
+        \nBills: {self.Bills} \
         \nCreated: {self.CreatedAt}"

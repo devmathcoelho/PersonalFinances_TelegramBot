@@ -1,5 +1,6 @@
 from telegram import Update
 from telegram.ext import ContextTypes
+from collections import deque
 
 from handlers.request import getUser, createUser, openRouterAI
 
@@ -24,6 +25,11 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # store the user info on context
             context.user_data["UserAuth"] = await getUser(name)
             context.user_data["making_login"] = False
+
+            if context.user_data.get("UserAuth") is None:
+                await update.message.reply_text(f"User {name} does not exist. Use /start to create an account.")
+                return
+            
             await update.message.reply_text(f"Hello {name}, you are logged in.")
 
         # check if the user is creating an account and are not logged in
@@ -40,12 +46,6 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply = await response(user_text, context)
         await update.message.reply_text(reply)
 
-async def response(text: str, context: ContextTypes.DEFAULT_TYPE) -> str: 
-    processed = text.lower()
-
-    if 'create user' in processed:
-        context.user_data["awaiting_name"] = True
-        return "What is your name?"
-    else:
-        # call the OpenRouterAI API to make AI responses
-        return await openRouterAI(text, context)
+async def response(text: str, context: ContextTypes.DEFAULT_TYPE) -> str:
+    # call the OpenRouterAI API to make AI responses
+    return await openRouterAI(text, context)
