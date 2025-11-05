@@ -6,6 +6,7 @@ from collections import deque
 
 from models.user import User
 from models.expense import Expense
+from models.category import Category
 
 apiUrl: str = "https://localhost:7108"
 
@@ -110,5 +111,46 @@ async def createExpense(context: ContextTypes.DEFAULT_TYPE, expense: Expense):
     try:
         async with httpx.AsyncClient(verify=False) as client:
             await client.post(f"{apiUrl}/expense", json=expense.to_dict())
+    except Exception as e:
+        print(e)
+
+async def removeExpense(context: ContextTypes.DEFAULT_TYPE, user, id: int):
+    if user is None:
+        raise Exception("User not found in context")
+
+    expenses = user["expenses"] if isinstance(user, dict) else getattr(user, "expenses", [])
+    for expense in expenses:
+        exp_id = expense.get("id") if isinstance(expense, dict) else getattr(expense, "id", None)
+        if str(exp_id) == str(id):
+            expenses.remove(expense)
+            break
+    else:
+        raise Exception("Expense not found")
+
+    try:
+        async with httpx.AsyncClient(verify=False) as client:
+            await client.delete(f"{apiUrl}/expense/{id}")
+    except Exception as e:
+        print("HTTP delete error:", e)
+
+
+async def createCategory(context: ContextTypes.DEFAULT_TYPE, category: Category):
+    try:
+        async with httpx.AsyncClient(verify=False) as client:
+            await client.post(f"{apiUrl}/category", json=category.to_dict())
+    except Exception as e:
+        print(e)
+
+async def addOnCategory(context: ContextTypes.DEFAULT_TYPE, userName: str, category: Category):
+    try:
+        async with httpx.AsyncClient(verify=False) as client:
+            await client.put(f"{apiUrl}/category/{userName}/{category.month}/{category.value}/add", json=category.to_dict())
+    except Exception as e:
+        print(e)
+
+async def removeOnCategory(context: ContextTypes.DEFAULT_TYPE, userName: str, month: int, value: float):
+    try:
+        async with httpx.AsyncClient(verify=False) as client:
+            await client.put(f"{apiUrl}/category/{userName}/{month}/{value}/remove", json={"name": userName, "month": month, "value": value})
     except Exception as e:
         print(e)

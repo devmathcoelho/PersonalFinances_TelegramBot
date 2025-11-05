@@ -5,8 +5,8 @@ class User:
         self.id = id
         self.name = name
         self.userstate = userstate
-        self.Categories = Categories
-        self.Expenses = Expenses
+        self.categories = Categories
+        self.expenses = Expenses
         self.Bills = Bills
         self.TotalRevenue = TotalRevenue
         self.TotalExpense = TotalExpense
